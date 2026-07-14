@@ -43,6 +43,12 @@ class WaterfallInput(BaseModel):
     realization_date: date
 
 
+class LPAllocation(BaseModel):
+    lp_id: str
+    lp_name: str
+    amount: float
+
+
 def construct_initial_state(input: WaterfallInput) -> WaterfallState:
     """Build the zeroed pooled state that the tier sequence runs against."""
     return WaterfallState(
