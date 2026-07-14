@@ -1,39 +1,10 @@
 import json
 
-from peak_contracts.models.waterfall_model import (
-    WaterfallLpDistribution,
-    WaterfallModelInput,
-    WaterfallModelOutput,
-)
+from waterfall_scenario_mcp.reasoning import compute_waterfall_scenario
+from waterfall_scenario_mcp.schemas.waterfall import WaterfallInput
 
-# Hardcoded scaffold values — replace with real waterfall engine later.
-HARDCODED_ASSET_VALUATION = 1_250_000.00
-HARDCODED_LP_DISTRIBUTIONS = [
-    WaterfallLpDistribution(
-        lp_id="LP-001",
-        lp_name="Institutional A",
-        lp_class="Class A",
-        distribution_amount=500_000.00,
-    ),
-    WaterfallLpDistribution(
-        lp_id="LP-002",
-        lp_name="Institutional B",
-        lp_class="Class B",
-        distribution_amount=375_000.00,
-    ),
-    WaterfallLpDistribution(
-        lp_id="LP-003",
-        lp_name="Family Office C",
-        lp_class="Class A",
-        distribution_amount=250_000.00,
-    ),
-    WaterfallLpDistribution(
-        lp_id="GP-001",
-        lp_name="General Partner",
-        lp_class="Carried Interest",
-        distribution_amount=125_000.00,
-    ),
-]
+DEFAULT_INVESTMENT_ID = "MSC-2019-047"
+DEFAULT_FUND_ID = "AGF3-2018"
 
 
 def register_waterfall_scenario_tools(mcp) -> None:
@@ -50,26 +21,39 @@ def register_waterfall_scenario_tools(mcp) -> None:
         },
     )
     async def waterfall_scenario_compute_lp_distributions(
-        asset_valuation: float = HARDCODED_ASSET_VALUATION,
-        fund_id: str = "FUND-001",
+        distributable_cash: float,
+        investment_id: str = DEFAULT_INVESTMENT_ID,
+        fund_id: str = DEFAULT_FUND_ID,
     ) -> str:
-        """Return a waterfall scenario allocating an asset valuation across LPs.
+        """Return a draft waterfall distribution scenario from a confirmed exit valuation.
 
-        Implements the `waterfall-model` override contract. Use when a firm's own
-        waterfall engine should replace the native Peak engine for LP splits.
+        Loads fund rules and the LP roster via the native Fund & Investor
+        Static Tool stand-in (mock_data.get_fund_rules / mock_data.get_lp_roster)
+        and the investment's cashflow tranches via the native Accounting
+        Cashflows Tool stand-in (mock_data.get_cashflows), runs the pooled
+        American/deal-by-deal tier sequence (return of capital, preferred
+        return, GP catch-up, residual split), then splits the resulting
+        LP-tier-total across the LP roster pro-rata by fund commitment %.
 
-        Scaffold: returns hardcoded demo distributions regardless of input.
+        Use when: the Valuation Agent has confirmed an exit valuation and the
+        orchestrator needs a draft distribution scenario for GP HITL review.
+        Do NOT use when: the valuation hasn't been confirmed yet.
+
+        Args:
+            distributable_cash: Confirmed exit valuation for this realization
+                event — the Valuation Agent's confirmed_total_valuation.
+            investment_id: Investment identifier to look up cashflow tranches for.
+            fund_id: Fund identifier to look up fund rules and the LP roster for.
 
         Returns:
-            JSON string matching WaterfallModelOutput schema.
+            JSON string matching WaterfallOutput schema. `status` is always
+            "PENDING_HITL_APPROVAL" — treat this as a proposed distribution,
+            not an approved one.
         """
-        payload = WaterfallModelInput(asset_valuation=asset_valuation, fund_id=fund_id)
-        result = WaterfallModelOutput(
-            fund_id=payload.fund_id,
-            asset_valuation=payload.asset_valuation,
-            currency="USD",
-            waterfall_method="hardcoded_scaffold",
-            lp_distributions=HARDCODED_LP_DISTRIBUTIONS,
-            total_distributed=sum(d.distribution_amount for d in HARDCODED_LP_DISTRIBUTIONS),
+        payload = WaterfallInput(
+            investment_id=investment_id,
+            fund_id=fund_id,
+            distributable_cash=distributable_cash,
         )
-        return json.dumps(result.model_dump(by_alias=True), indent=2)
+        result = compute_waterfall_scenario(payload)
+        return json.dumps(result.model_dump(mode="json"), indent=2)

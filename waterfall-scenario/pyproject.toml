@@ -7,7 +7,13 @@ requires-python = ">=3.11"
 dependencies = [
     "mcp>=1.9.0",
     "pydantic>=2.0",
-    "peak-contracts",
+    "waterfall-engine",
+    "mock-data",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
 ]
 
 [project.scripts]

@@ -1,7 +1,8 @@
 from waterfall_scenario_mcp.schemas.waterfall import (
-    LPDistribution,
+    LPAllocation,
+    TierResults,
     WaterfallInput,
     WaterfallOutput,
 )
 
-__all__ = ["LPDistribution", "WaterfallInput", "WaterfallOutput"]
+__all__ = ["LPAllocation", "TierResults", "WaterfallInput", "WaterfallOutput"]
