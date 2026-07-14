@@ -1,0 +1,24 @@
+[project]
+name = "mock-data"
+version = "0.1.0"
+description = "Demo dataset stand-in for the missing database — Meridian Software Group / AGF3-2018 fixture and lookup functions"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mock_data"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/mock_data", "README.md"]
