@@ -1,11 +1,10 @@
 import json
+from datetime import date
 
-from valuation_mcp.schemas.valuation import ValuationOutput
+from valuation_mcp.reasoning import value_asset
+from valuation_mcp.schemas.valuation import ValuationInput
 
-# Hardcoded scaffold values — replace with real pricing/valuation logic later.
-HARDCODED_CLOSING_PRICE = 125.50
-HARDCODED_ASSET_VALUATION = 1_250_000.00
-HARDCODED_POSITION_ID = "POS-001"
+DEFAULT_ASSET_ID = "MSC-2019-047"
 
 
 def register_valuation_tools(mcp) -> None:
@@ -21,21 +20,49 @@ def register_valuation_tools(mcp) -> None:
             "openWorldHint": False,
         },
     )
-    async def valuation_get_asset_valuation() -> str:
-        """Return the valuation of an asset from a position closing price.
+    async def valuation_get_asset_valuation(
+        asset_id: str = DEFAULT_ASSET_ID,
+        closing_price_per_unit: float | None = None,
+        methodology: str | None = None,
+        ic_approved_by: str | None = None,
+        effective_date: date | None = None,
+        arm_length_confirmation: bool | None = None,
+    ) -> str:
+        """Return a confirmed asset valuation from the ledger record and a new tranche's closing price.
 
-        Use when: an agent needs the current asset valuation for a held position.
-        Do NOT use when: live market data or user-supplied prices are required
-        (scaffold returns hardcoded demo values only).
+        Loads the asset + its tranches via the native Ledger Data Tool stand-in
+        (mock_data.get_asset_record), derives the implied enterprise value from
+        the newly priced tranche's closing price, restates the other tranches
+        against it, runs the standard validation checks, and returns the
+        confirmed valuation.
+
+        Use when: an agent needs a confirmed asset valuation after a new
+        tranche closes.
+        Do NOT use when: no tranche is awaiting a price (nothing to revalue).
+
+        Args:
+            asset_id: Asset identifier to load from the ledger.
+            closing_price_per_unit: New closing/transaction price per unit for
+                the unpriced tranche, as returned by the customer's registered
+                Price Feed Tool. If omitted, falls back to
+                mock_data.get_price_feed_response as the demo stand-in for
+                that external call.
+            methodology: Pricing methodology used (Price Feed Tool field).
+            ic_approved_by: Investment Committee approval reference.
+            effective_date: Date the new price became effective.
+            arm_length_confirmation: Whether the transaction was arm's-length.
 
         Returns:
             JSON string matching ValuationOutput schema.
         """
-        result = ValuationOutput(
-            position_id=HARDCODED_POSITION_ID,
-            closing_price=HARDCODED_CLOSING_PRICE,
-            asset_valuation=HARDCODED_ASSET_VALUATION,
-            currency="USD",
-            valuation_method="hardcoded_scaffold",
+        payload = ValuationInput(
+            asset_id=asset_id,
+            closing_price_per_unit=closing_price_per_unit,
+            methodology=methodology,
+            ic_approved_by=ic_approved_by,
+            effective_date=effective_date,
+            arm_length_confirmation=arm_length_confirmation,
         )
-        return json.dumps(result.model_dump(), indent=2)
+        result = value_asset(payload)
+        return json.dumps(result.model_dump(mode="json"), indent=2)
+
